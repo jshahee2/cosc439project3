@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OS Project: Socket Tic-Tac-Toe</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f0f2f5; }
+        .grid { display: grid; grid-template-columns: repeat(3, 100px); gap: 10px; justify-content: center; margin-top: 20px; }
+        .cell { width: 100px; height: 100px; background: white; border: 2px solid #333; font-size: 2em; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .cell:hover { background: #eee; }
+        #status { margin-top: 20px; font-weight: bold; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <h1>Tic-Tac-Toe (OS Socket Programming)</h1>
+    <div id="player-id">Connecting...</div>
+    <div id="status">Waiting for opponent...</div>
+
+    <div id="rematch-area" style="display: none; margin-top: 15px;">
+        <button id="rematch-btn" onclick="requestRematch()" style="padding: 10px 20px; font-size: 1.1em; cursor: pointer; border-radius: 5px; border: 1px solid #333;">Request Rematch</button>
+        <div id="rematch-status" style="margin-top: 10px; color: #555; font-style: italic;"></div>
+    </div>
+    
+    <div class="grid" id="grid">
+        <div class="cell" onclick="makeMove(0)"></div>
+        <div class="cell" onclick="makeMove(1)"></div>
+        <div class="cell" onclick="makeMove(2)"></div>
+        <div class="cell" onclick="makeMove(3)"></div>
+        <div class="cell" onclick="makeMove(4)"></div>
+        <div class="cell" onclick="makeMove(5)"></div>
+        <div class="cell" onclick="makeMove(6)"></div>
+        <div class="cell" onclick="makeMove(7)"></div>
+        <div class="cell" onclick="makeMove(8)"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        let myChar = "";
+
+        socket.on('assign_player', (char) => {
+            myChar = char;
+            document.getElementById('player-id').innerText = "You are Player: " + char;
+        });
+
+        // Updated board logic to handle showing/hiding the rematch button
+        socket.on('update_board', (data) => {
+            const cells = document.getElementsByClassName('cell');
+            for(let i=0; i<9; i++) {
+                cells[i].innerText = data.board[i];
+            }
+            
+            const rematchArea = document.getElementById('rematch-area');
+            const rematchBtn = document.getElementById('rematch-btn');
+            const rematchStatus = document.getElementById('rematch-status');
+
+            if(data.winner) {
+                document.getElementById('status').innerText = "Game Over! Winner: " + data.winner;
+                // Show the rematch area when the game ends
+                rematchArea.style.display = "block";
+                rematchBtn.disabled = false;
+                rematchStatus.innerText = "";
+            } else {
+                document.getElementById('status').innerText = (data.turn === myChar) ? "Your Turn!" : "Waiting for Opponent...";
+                // Hide the rematch area while playing
+                rematchArea.style.display = "none";
+            }
+        });
+
+        // New listener to show when one player clicks the button
+        socket.on('rematch_waiting', (data) => {
+            const rematchStatus = document.getElementById('rematch-status');
+            const rematchBtn = document.getElementById('rematch-btn');
+            
+            if (data.player === myChar) {
+                rematchStatus.innerText = "Waiting for opponent to accept...";
+                rematchBtn.disabled = true; // Disable so they don't spam click
+            } else {
+                rematchStatus.innerText = "Opponent wants a rematch!";
+            }
+        });
+
+        function makeMove(idx) {
+            socket.emit('make_move', {index: idx});
+        }
+
+        // New function triggered by the button
+        function requestRematch() {
+            socket.emit('request_rematch');
+        }
+    </script>
+</body>
+</html>
